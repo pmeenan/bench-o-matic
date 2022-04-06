@@ -42,13 +42,13 @@ class BenchOMatic():
 
     def run(self):
         """Run the requested tests"""
-        benchmarks = self.benchmarks.keys()
+        benchmarks = list(self.benchmarks.keys())
         random.shuffle(benchmarks)
         for benchmark_name in benchmarks:
             self.current_benchmark = benchmark_name
             benchmark = self.benchmarks[benchmark_name]
             print('{}:'.format(benchmark_name))
-            browsers = self.browsers.keys()
+            browsers = list(self.browsers.keys())
             random.shuffle(browsers)
             for name in browsers:
                 browser = self.browsers[name]
