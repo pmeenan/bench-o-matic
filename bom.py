@@ -117,17 +117,28 @@ class BenchOMatic():
         done = False
         end_time = monotonic() + 600
         while not done and monotonic() < end_time:
-            time.sleep(2)
-            result = self.driver.execute_script(benchmark['done'])
-            if result:
-                done = True
+            try:
+                time.sleep(2)
+                result = self.driver.execute_script(benchmark['done'])
+                if result:
+                    done = True
+            except Exception:
+                pass
         return done
     
     def collect_result(self, benchmark):
         """Collect the benchmark result"""
-        result = self.driver.execute_script(benchmark['result'])
+        result = 'N/A'
+        try:
+            result = self.driver.execute_script(benchmark['result'])
+        except Exception:
+            pass
         if 'confidence' in benchmark:
-            confidence = self.driver.execute_script(benchmark['confidence'])
+            confidence = 'N/A'
+            try:
+                confidence = self.driver.execute_script(benchmark['confidence'])
+            except Exception:
+                pass
             print('    {}: {} ± {}'.format(self.current_browser, result, confidence))
         else:
             print('    {}: {}'.format(self.current_browser, result))
