@@ -142,6 +142,7 @@ class BenchOMatic():
             result = self.driver.execute_script(benchmark['result'])
         except Exception:
             pass
+        """
         if 'confidence' in benchmark:
             confidence = 'N/A'
             try:
@@ -151,6 +152,8 @@ class BenchOMatic():
             print('    {}: {} ± {}'.format(self.current_browser, result, confidence))
         else:
             print('    {}: {}'.format(self.current_browser, result))
+        """
+        print('    {}: {}'.format(self.current_browser, result))
 
         # Save the screnshot
         file_path = os.path.join(self.root_path, '{} - {}.png'.format(self.current_benchmark, self.current_browser))
