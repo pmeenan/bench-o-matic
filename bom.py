@@ -17,14 +17,14 @@ class BenchOMatic():
         self.current_benchmark = None
         self.root_path = os.path.abspath(os.path.dirname(__file__))
         self.benchmarks = {
-            'Speedometer2.0': {
+            'Speedometer 2.0': {
                 'url': 'https://browserbench.org/Speedometer2.0/',
                 'start': 'startTest();',
                 'done': "return (document.getElementById('results-with-statistics') && document.getElementById('results-with-statistics').innerText.length > 0);",
                 'result': "return parseInt(document.getElementById('result-number').innerText);",
                 'confidence': "return parseFloat(document.getElementById('confidence-number').innerText.substring(2))"
             },
-            'MotionMark1.2': {
+            'MotionMark 1.2': {
                 'url': 'https://browserbench.org/MotionMark1.2/',
                 'start': 'benchmarkController.startBenchmark();',
                 'done': "return (document.querySelectorAll('#results>.body>.score-container>.score').length > 0);'",
@@ -41,9 +41,10 @@ class BenchOMatic():
 
     def run(self):
         """Run the requested tests"""
-        for benchmark in self.benchmarks:
-            self.current_benchmark = benchmark
-            print('{}:'.format(benchmark))
+        for benchmark_name in self.benchmarks:
+            self.current_benchmark = benchmark_name
+            benchmark = self.benchmarks[benchmark_name]
+            print('{}:'.format(benchmark_name))
             for name in self.browsers:
                 browser = self.browsers[name]
                 browser['name'] = name
@@ -55,29 +56,48 @@ class BenchOMatic():
                     self.collect_result(benchmark)
                 else:
                     logging.info('Benchmark failed')
-                self.driver.quit()
+                self.driver.close()
+                try:
+                    self.driver.quit()
+                except Exception:
+                    pass
     
     def launch_browser(self, browser):
         """Launch the selected browser"""
         logging.info('Launching {}...'.format(browser['name']))
         if browser['type'] == 'Chrome':
             from selenium.webdriver.chrome.options import Options
+            from selenium.webdriver.chrome.service import Service
+            from webdriver_manager.chrome import ChromeDriverManager
+            os.environ['WDM_LOG'] = '0'
             options = Options()
             options.binary_location = browser['exe']
-            self.driver = webdriver.Chrome()
+            self.driver = webdriver.Chrome(options=options, service=Service(ChromeDriverManager().install()))
         elif browser['type'] == 'Safari':
-            from selenium.webdriver.safari.options import Options
-            options = Options()
-            if browser['name'] == 'Safari Technology Preview':
+            if 'driver' in browser:
+                from selenium.webdriver.safari.options import Options
+                options = Options()
+                options.binary_location = browser['exe']
                 options.use_technology_preview = True
-            self.driver = webdriver.Safari(options=options)
+                self.driver = webdriver.Safari(options=options)
+            else:
+                self.driver = webdriver.Safari()
         elif browser['type'] == 'Firefox':
             from selenium.webdriver.firefox.options import Options
+            from selenium.webdriver.firefox.service import Service
+            from webdriver_manager.firefox import GeckoDriverManager
+            os.environ['WDM_LOG'] = '0'
             options = Options()
             options.binary_location = browser['exe']
-            self.driver = webdriver.Firefox(options=options)
+            self.driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
         self.driver.set_page_load_timeout(600)
         self.driver.set_script_timeout(30)
+
+        # Get the browser version
+        if 'version' in self.driver.capabilities:
+            self.current_browser += ' ' + self.driver.capabilities['version']
+        elif 'browserVersion' in self.driver.capabilities:
+            self.current_browser += ' ' + self.driver.capabilities['browserVersion']
 
         # Make sure all browsers use the same window size
         self.driver.set_window_position(0, 0)
@@ -347,6 +367,7 @@ class BenchOMatic():
             chrome_path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
             if 'Chrome' not in browsers and os.path.isfile(chrome_path):
                 browsers['Chrome'] = {'exe': chrome_path, 'type': 'Chrome'}
+            """
             chrome_path = '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta'
             if 'Chrome Beta' not in browsers and os.path.isfile(chrome_path):
                 browsers['Chrome Beta'] = {'exe': chrome_path, 'type': 'Chrome'}
@@ -357,20 +378,26 @@ class BenchOMatic():
             if os.path.isfile(canary_path):
                 if 'Chrome Canary' not in browsers:
                     browsers['Chrome Canary'] = {'exe': canary_path, 'type': 'Chrome'}
+            """
             firefox_path = '/Applications/Firefox.app/Contents/MacOS/firefox'
             if 'Firefox' not in browsers and os.path.isfile(firefox_path):
                 browsers['Firefox'] = {'exe': firefox_path, 'type': 'Firefox'}
+            """
             nightly_path = '/Applications/FirefoxNightly.app/Contents/MacOS/firefox'
             if 'Firefox Nightly' not in browsers and os.path.isfile(nightly_path):
                 browsers['Firefox Nightly'] = {'exe': nightly_path,
                                             'type': 'Firefox',
                                             'log_level': 5}
+            """
             safari_path = '/Applications/Safari.app/Contents/MacOS/Safari'
             if 'Safari' not in browsers and os.path.isfile(safari_path):
                 browsers['Safari'] = {'exe': safari_path, 'type': 'Safari'}
+            """
             safari_path = '/Applications/Safari Technology Preview.app/Contents/MacOS/Safari Technology Preview'
             if 'Safari Technology Preview' not in browsers and os.path.isfile(safari_path):
-                browsers['Safari Technology Preview'] = {'exe': safari_path, 'type': 'Safari'}
+                browsers['Safari Technology Preview'] = {'exe': safari_path, 'type': 'Safari',
+                    'driver': '/Applications/Safari Technology Preview.app/Contents/MacOS/safaridriver'}
+            """
 
         logging.info('Detected Browsers:')
         for browser in browsers:
