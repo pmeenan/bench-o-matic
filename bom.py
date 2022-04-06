@@ -17,13 +17,13 @@ class BenchOMatic():
         self.current_benchmark = None
         self.root_path = os.path.abspath(os.path.dirname(__file__))
         self.benchmarks = {
-#            'Speedometer 2.0': {
-#                'url': 'https://browserbench.org/Speedometer2.0/',
-#                'start': 'startTest();',
-#                'done': "return (document.getElementById('results-with-statistics') && document.getElementById('results-with-statistics').innerText.length > 0);",
-#                'result': "return parseInt(document.getElementById('result-number').innerText);",
-#                'confidence': "return parseFloat(document.getElementById('confidence-number').innerText.substring(2))"
-#            },
+            'Speedometer 2.0': {
+                'url': 'https://browserbench.org/Speedometer2.0/',
+                'start': 'startTest();',
+                'done': "return (document.getElementById('results-with-statistics') && document.getElementById('results-with-statistics').innerText.length > 0);",
+                'result': "return parseInt(document.getElementById('result-number').innerText);",
+                'confidence': "return parseFloat(document.getElementById('confidence-number').innerText.substring(2))"
+            },
             'MotionMark 1.2': {
                 'url': 'https://browserbench.org/MotionMark1.2/',
                 'start': 'benchmarkController.startBenchmark();',
