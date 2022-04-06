@@ -66,6 +66,9 @@ class BenchOMatic():
                     self.driver.quit()
                 except Exception:
                     pass
+                # Kill Safari manually since it doesn't like to go away cleanly
+                if name == 'Safari':
+                    subprocess.call(['killall', 'Safari'])
     
     def launch_browser(self, browser):
         """Launch the selected browser"""
