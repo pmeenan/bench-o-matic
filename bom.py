@@ -4,7 +4,7 @@ import os
 import platform
 import psutil
 import random
-import sys
+import subprocess
 import time
 from selenium import webdriver
 from time import monotonic
@@ -32,7 +32,7 @@ class BenchOMatic():
                 'result': "return parseFloat(document.querySelector('#results>.body>.score-container>.score').innerText);",
                 'confidence': "document.querySelector('#results>.body>.score-container>.confidence').innerText.substring(1)"
             },
-            'JetStream': {
+            'JetStream 2': {
                 'url': 'https://browserbench.org/JetStream/',
                 'start': 'JetStream.start();',
                 'done': "return (document.querySelectorAll('#result-summary>.score').length > 0);",
@@ -344,6 +344,10 @@ if '__main__' == __name__:
           log_level = logging.DEBUG
     logging.basicConfig(
         level=log_level, format="%(asctime)s.%(msecs)03d - %(message)s", datefmt="%H:%M:%S")
+
+    # Keep the display awake (macos)
+    if platform.system() == "Darwin":
+        subprocess.Popen(['caffeinate', '-dis'])
 
     # Kick off the actual benchmarking
     bom = BenchOMatic(options)
