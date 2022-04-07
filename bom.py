@@ -6,31 +6,33 @@ import psutil
 import random
 import subprocess
 import time
+from datetime import datetime
 from selenium import webdriver
 from time import monotonic
 
 class BenchOMatic():
     """Automate browserbench.org testing across browsers using webdriver"""
     def __init__(self, options):
+        self.runs = options.runs
         self.driver = None
         self.detect_browsers()
         self.current_browser = None
         self.current_benchmark = None
         self.root_path = os.path.abspath(os.path.dirname(__file__))
+        self.bench_root = os.path.join(self.root_path, datetime.now().strftime('%Y%m%d-%H%M%S-'))
+        self.run_timestamp = None
         self.benchmarks = {
             'Speedometer 2.0': {
                 'url': 'https://browserbench.org/Speedometer2.0/',
                 'start': 'startTest();',
                 'done': "return (document.getElementById('results-with-statistics') && document.getElementById('results-with-statistics').innerText.length > 0);",
-                'result': "return parseInt(document.getElementById('result-number').innerText);",
-                'confidence': "return parseFloat(document.getElementById('confidence-number').innerText.substring(2))"
+                'result': "return parseInt(document.getElementById('result-number').innerText);"
             },
             'MotionMark 1.2': {
                 'url': 'https://browserbench.org/MotionMark1.2/',
                 'start': 'benchmarkController.startBenchmark();',
                 'done': "return (document.querySelector('#results>.body>.score-container>.score').innerText.length > 0);",
-                'result': "return parseFloat(document.querySelector('#results>.body>.score-container>.score').innerText);",
-                'confidence': "document.querySelector('#results>.body>.score-container>.confidence').innerText.substring(1)"
+                'result': "return parseFloat(document.querySelector('#results>.body>.score-container>.score').innerText);"
             },
             'JetStream 2': {
                 'url': 'https://browserbench.org/JetStream/',
@@ -42,34 +44,60 @@ class BenchOMatic():
 
     def run(self):
         """Run the requested tests"""
-        benchmarks = list(self.benchmarks.keys())
-        random.shuffle(benchmarks)
-        for benchmark_name in benchmarks:
-            self.current_benchmark = benchmark_name
-            benchmark = self.benchmarks[benchmark_name]
-            print('{}:'.format(benchmark_name))
-            browsers = list(self.browsers.keys())
-            random.shuffle(browsers)
-            for name in browsers:
-                browser = self.browsers[name]
-                browser['name'] = name
-                self.current_browser = name
-                self.launch_browser(browser)
-                self.current_benchmark = 'Speedometer'
-                self.prepare_benchmark(benchmark)
-                if self.run_benchmark(benchmark):
-                    self.collect_result(benchmark)
-                else:
-                    logging.info('Benchmark failed')
-                self.driver.close()
-                try:
-                    self.driver.quit()
-                except Exception:
-                    pass
-                # Kill Safari manually since it doesn't like to go away cleanly
-                if name == 'Safari':
-                    subprocess.call(['killall', 'Safari'])
-    
+        benchmark_names = list(self.benchmarks.keys())
+        browser_names = list(self.browsers.keys())
+
+        # Initialize the CSV result files with a header
+        for benchmark_name in benchmark_names:
+            csv_file = self.bench_root + benchmark_name.replace(' ', '') + '.csv'
+            with open(csv_file, 'wt') as f:
+                f.write('Run')
+                for browser_name in browser_names:
+                    if 'version' in self.browsers[browser_name]:
+                        browser_name += ' ' + self.browsers[browser_name]['version']
+                    f.write(',{}'.format(browser_name))
+                f.write('\n')
+
+        for run in range(self.runs):
+            self.run_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print('')
+            print('Run {}'.format(run + 1))
+            benchmarks = list(self.benchmarks.keys())
+            random.shuffle(benchmarks)
+            for benchmark_name in benchmarks:
+                results = {}
+                self.current_benchmark = benchmark_name
+                benchmark = self.benchmarks[benchmark_name]
+                print('{}:'.format(benchmark_name))
+                browsers = list(self.browsers.keys())
+                random.shuffle(browsers)
+                for name in browsers:
+                    browser = self.browsers[name]
+                    browser['name'] = name
+                    self.current_browser = name
+                    self.launch_browser(browser)
+                    self.prepare_benchmark(benchmark)
+                    if self.run_benchmark(benchmark):
+                        results[name] = self.collect_result(benchmark)
+                    else:
+                        logging.info('Benchmark failed')
+                    self.driver.close()
+                    try:
+                        self.driver.quit()
+                    except Exception:
+                        pass
+                    # Kill Safari manually since it doesn't like to go away cleanly
+                    if name == 'Safari':
+                        subprocess.call(['killall', 'Safari'])
+
+                # Write the results for each run as they complete
+                csv_file = self.bench_root + benchmark_name.replace(' ', '') + '.csv'
+                with open(csv_file, 'at') as f:
+                    f.write(self.run_timestamp)
+                    for browser_name in browser_names:
+                        f.write(',{}'.format(results[browser_name] if browser_name in results else ''))
+                    f.write('\n')
+
     def launch_browser(self, browser):
         """Launch the selected browser"""
         logging.info('Launching {}...'.format(browser['name']))
@@ -140,27 +168,18 @@ class BenchOMatic():
     
     def collect_result(self, benchmark):
         """Collect the benchmark result"""
-        result = 'N/A'
+        result = ''
         try:
             result = self.driver.execute_script(benchmark['result'])
         except Exception:
             pass
-        """
-        if 'confidence' in benchmark:
-            confidence = 'N/A'
-            try:
-                confidence = self.driver.execute_script(benchmark['confidence'])
-            except Exception:
-                pass
-            print('    {}: {} ± {}'.format(self.current_browser, result, confidence))
-        else:
-            print('    {}: {}'.format(self.current_browser, result))
-        """
         print('    {}: {}'.format(self.current_browser, result))
 
         # Save the screnshot
-        file_path = os.path.join(self.root_path, '{} - {}.png'.format(self.current_benchmark, self.current_browser))
+        file_path = self.bench_root + '{}-{}.png'.format(self.current_benchmark.replace(' ', ''), self.current_browser)
         self.driver.get_screenshot_as_file(file_path)
+
+        return result
 
     def wait_for_idle(self, timeout=30):
         """Wait for the system to go idle for at least 2 seconds"""
@@ -335,6 +354,7 @@ if '__main__' == __name__:
     parser = argparse.ArgumentParser(description='Bench-o-matic', prog='bom')
     parser.add_argument('-v', '--verbose', action='count',
                         help="Increase verbosity (specify multiple times for more). -vvvv for full debug output.")
+    parser.add_argument('-r', '--runs', type=int, default=1, help='Number of runs.')
     options, _ = parser.parse_known_args()
 
     # Set up logging
